@@ -1,0 +1,22 @@
+[
+  {
+    "version": "20260420_102513",
+    "timestamp": "2026-04-20T10:25:13.479881",
+    "score": 0.7390390704470022,
+    "samples": 1000,
+    "metrics": {
+      "model_type": "Linear Regression"
+    },
+    "model_path": "models/model_20260420_102513.pkl"
+  },
+  {
+    "version": "20260420_102520",
+    "timestamp": "2026-04-20T10:25:20.925585",
+    "score": 0.8267744590699765,
+    "samples": 1000,
+    "metrics": {
+      "model_type": "Gradient Boosting"
+    },
+    "model_path": "models/model_20260420_102520.pkl"
+  }
+]

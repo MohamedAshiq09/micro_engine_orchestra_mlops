@@ -7,3 +7,4 @@ requests
 streamlit
 plotly
 matplotlib
+python-multipart
