@@ -1,9 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from pydantic import BaseModel
 import numpy as np
 from typing import Dict
 import sys
 import os
+import pickle
+import tempfile
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -47,6 +49,10 @@ class PredictionResponse(BaseModel):
     prediction: float
     confidence: float
     drift_detected: bool
+
+class TrainModelRequest(BaseModel):
+    model_type: str
+    n_samples: int = 1000
 
 @app.get("/")
 def root():
@@ -214,5 +220,131 @@ def rollback_version(version: str):
             return {"status": "success", "version": version}
         else:
             raise HTTPException(status_code=404, detail="Version not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/upload_model")
+async def upload_model(file: UploadFile = File(...)):
+    """Upload and deploy a trained model"""
+    try:
+        if not file.filename.endswith('.pkl'):
+            raise HTTPException(status_code=400, detail="Only .pkl files allowed")
+        
+        # Read uploaded file
+        contents = await file.read()
+        
+        # Validate it's a pickle file
+        try:
+            model = pickle.loads(contents)
+        except:
+            raise HTTPException(status_code=400, detail="Invalid pickle file")
+        
+        # Check if model has predict method
+        if not hasattr(model, 'predict'):
+            raise HTTPException(status_code=400, detail="Model must have predict() method")
+        
+        # Save model
+        model_path = os.path.join('models', 'model.pkl')
+        with open(model_path, 'wb') as f:
+            f.write(contents)
+        
+        # Reload model manager
+        model_manager.load_model()
+        
+        # Create version
+        version = version_manager.save_version(
+            model_manager.model,
+            0.0,  # Score unknown for uploaded models
+            0,
+            {'source': 'uploaded'}
+        )
+        
+        print(f"✅ Model uploaded: {file.filename}")
+        
+        return {
+            "status": "success",
+            "filename": file.filename,
+            "version": version,
+            "message": "Model deployed successfully"
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/train_new_model")
+def train_new_model(request: TrainModelRequest):
+    """Train a new model from scratch"""
+    try:
+        from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+        from sklearn.linear_model import LinearRegression
+        
+        # Generate synthetic data
+        np.random.seed(42)
+        n = request.n_samples
+        
+        X = np.column_stack([
+            np.random.randn(n) * 10 + 50,
+            np.random.randn(n) * 5 + 20,
+            np.random.randn(n) * 15 + 100
+        ])
+        
+        y = X[:, 0] * 0.5 + X[:, 1] * 1.2 + X[:, 2] * 0.3 + np.random.randn(n) * 5
+        
+        # Select model type
+        if request.model_type == "Random Forest":
+            model = RandomForestRegressor(n_estimators=100, random_state=42)
+        elif request.model_type == "Linear Regression":
+            model = LinearRegression()
+        elif request.model_type == "Gradient Boosting":
+            model = GradientBoostingRegressor(n_estimators=100, random_state=42)
+        else:
+            raise HTTPException(status_code=400, detail="Invalid model type")
+        
+        # Train
+        model.fit(X, y)
+        score = model.score(X, y)
+        
+        # Save model
+        model_path = os.path.join('models', 'model.pkl')
+        with open(model_path, 'wb') as f:
+            pickle.dump(model, f)
+        
+        # Save stats
+        train_stats = {
+            'mean': {f'feature{i+1}': float(X[:, i].mean()) for i in range(3)},
+            'std': {f'feature{i+1}': float(X[:, i].std()) for i in range(3)}
+        }
+        
+        with open(os.path.join('models', 'train_stats.pkl'), 'wb') as f:
+            pickle.dump(train_stats, f)
+        
+        # Reload
+        model_manager.load_model()
+        
+        # Set baseline
+        drift_detector.set_baseline(X)
+        
+        # Create version
+        version = version_manager.save_version(
+            model,
+            score,
+            n,
+            {'model_type': request.model_type}
+        )
+        
+        print(f"✅ New model trained: {request.model_type}")
+        
+        return {
+            "status": "success",
+            "model_type": request.model_type,
+            "score": float(score),
+            "samples": n,
+            "version": version
+        }
+    
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
