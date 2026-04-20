@@ -15,7 +15,7 @@ app = FastAPI(title="MLOps Auto-Retrain System")
 
 # Initialize components
 model_manager = ModelManager()
-drift_detector = DriftDetector(threshold=0.05)
+drift_detector = DriftDetector(threshold=0.3)  # 30% change triggers drift
 data_store = DataStore()
 
 # Load model and set baseline
