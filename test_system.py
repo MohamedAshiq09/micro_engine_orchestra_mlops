@@ -22,8 +22,10 @@ def test_predictions():
         }
         
         response = requests.post(f"{BASE_URL}/predict", json=data)
+        result = response.json()
+        
         if i % 10 == 0:
-            print(f"✓ Prediction {i+1}: {response.json()['prediction']:.2f}")
+            print(f"✓ Prediction {i+1}: {result['prediction']:.2f} (Confidence: {result['confidence']*100:.1f}%)")
     
     print(f"✅ Sent 40 normal predictions")
 
@@ -64,15 +66,27 @@ def send_drifted_data():
 def trigger_retrain():
     """Trigger retraining"""
     print("\n" + "="*60)
-    print("🔄 PHASE 4: Automatic Retraining")
+    print("🔄 PHASE 4: Automatic Retraining with Validation")
     print("="*60)
     
     response = requests.post(f"{BASE_URL}/retrain")
     result = response.json()
     
-    print(f"✅ Retraining completed!")
-    print(f"   Score: {result['score']:.4f}")
-    print(f"   Samples: {result['samples']}")
+    if result['status'] == 'success':
+        print(f"✅ Retraining completed!")
+        print(f"   Train Score: {result['train_score']:.4f}")
+        print(f"   Val Score: {result['val_score']:.4f}")
+        print(f"   Samples: {result['samples']}")
+        
+        if result.get('comparison'):
+            comp = result['comparison']
+            print(f"\n📊 Performance Comparison:")
+            print(f"   Old Model: {comp['old_score']:.4f}")
+            print(f"   New Model: {comp['new_score']:.4f}")
+            print(f"   Improvement: {comp['improvement']:.2f}%")
+            print(f"   Deployed: {'✓' if comp['deploy'] else '✗'}")
+    else:
+        print(f"⚠️  Retraining {result['status']}: {result.get('reason', 'Unknown')}")
 
 def get_stats():
     """Get system stats"""
@@ -84,8 +98,16 @@ def get_stats():
     stats = response.json()
     
     print(f"Total Predictions: {stats['total_predictions']}")
-    print(f"Model Loaded: {stats['model_loaded']}")
-    print(f"Baseline Set: {stats['baseline_set']}")
+    print(f"Model Versions: {stats['total_versions']}")
+    print(f"Auto-Retrain: {'Enabled' if stats['auto_retrain'] else 'Disabled'}")
+    print(f"Drift Threshold: {stats['drift_threshold']*100:.0f}%")
+    
+    if stats.get('latest_version'):
+        v = stats['latest_version']
+        print(f"\nLatest Model:")
+        print(f"  Version: {v['version']}")
+        print(f"  Score: {v['score']:.4f}")
+        print(f"  Samples: {v['samples']}")
 
 def main():
     print("\n" + "="*60)
@@ -129,12 +151,18 @@ def main():
     print("\n" + "="*60)
     print("✅ DEMO COMPLETED!")
     print("="*60)
-    print("\n💡 Key Points Demonstrated:")
-    print("   1. ✓ Model makes predictions")
-    print("   2. ✓ System logs all incoming data")
-    print("   3. ✓ Drift detection works automatically")
-    print("   4. ✓ Model retrains when drift detected")
-    print("   5. ✓ System is self-healing\n")
+    print("\n💡 Key Features Demonstrated:")
+    print("   1. ✓ Predictions with confidence scores")
+    print("   2. ✓ Automatic data logging")
+    print("   3. ✓ Statistical drift detection")
+    print("   4. ✓ Model validation before deployment")
+    print("   5. ✓ Performance comparison (A/B testing)")
+    print("   6. ✓ Model versioning with rollback")
+    print("   7. ✓ Fail-safe mechanisms")
+    print("\n🎯 Real-world Use Case:")
+    print("   EV charging stations - demand changes during peak hours.")
+    print("   System detects shift and retrains automatically.\n")
+    print("📊 View Dashboard: streamlit run dashboard.py\n")
 
 if __name__ == "__main__":
     main()
