@@ -5,6 +5,8 @@ import plotly.graph_objects as go
 import numpy as np
 from datetime import datetime
 import time
+import pickle
+import io
 
 st.set_page_config(page_title="MLOps Monitor", layout="wide", initial_sidebar_state="collapsed")
 
@@ -42,10 +44,70 @@ st.markdown("""
     .stButton button:hover {
         background-color: #0256c7;
     }
+    .upload-section {
+        background-color: #ffffff;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #e1e4e8;
+        margin: 20px 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("MLOps Monitor")
+
+# Sidebar for model management
+with st.sidebar:
+    st.header("Model Management")
+    
+    tab1, tab2 = st.tabs(["Upload Model", "Train New"])
+    
+    with tab1:
+        st.markdown("### Upload Model")
+        uploaded_file = st.file_uploader("Upload .pkl model file", type=['pkl'])
+        
+        if uploaded_file is not None:
+            if st.button("Deploy Uploaded Model", key="upload_btn"):
+                try:
+                    files = {'file': uploaded_file.getvalue()}
+                    response = requests.post(f"{BASE_URL}/upload_model", files={'file': uploaded_file})
+                    
+                    if response.status_code == 200:
+                        st.success("✅ Model uploaded and deployed!")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error(f"❌ Upload failed: {response.json().get('detail', 'Unknown error')}")
+                except Exception as e:
+                    st.error(f"❌ Error: {e}")
+    
+    with tab2:
+        st.markdown("### Train New Model")
+        
+        model_type = st.selectbox(
+            "Model Type",
+            ["Random Forest", "Linear Regression", "Gradient Boosting"]
+        )
+        
+        n_samples = st.slider("Training Samples", 100, 2000, 1000, 100)
+        
+        if st.button("Train Model", key="train_btn"):
+            with st.spinner("Training..."):
+                try:
+                    response = requests.post(
+                        f"{BASE_URL}/train_new_model",
+                        json={"model_type": model_type, "n_samples": n_samples}
+                    )
+                    
+                    if response.status_code == 200:
+                        result = response.json()
+                        st.success(f"✅ Model trained! Score: {result['score']:.4f}")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error("❌ Training failed")
+                except Exception as e:
+                    st.error(f"❌ Error: {e}")
 
 # Check server
 try:
@@ -147,6 +209,8 @@ try:
                 result = requests.post(f"{BASE_URL}/retrain").json()
                 if result['status'] == 'success':
                     st.success(f"✅ Retrained! Score: {result['val_score']:.4f}")
+                    time.sleep(1)
+                    st.rerun()
                 else:
                     st.warning(f"⚠️ {result.get('reason', 'Failed')}")
     
