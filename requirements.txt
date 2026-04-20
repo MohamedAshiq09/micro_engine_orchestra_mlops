@@ -4,3 +4,6 @@ scikit-learn
 numpy
 pydantic
 requests
+streamlit
+plotly
+matplotlib
