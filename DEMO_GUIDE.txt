@@ -1,0 +1,57 @@
+MLOps Auto-Retrain System - Demo Guide
+========================================
+
+SETUP:
+------
+1. pip install -r requirements.txt
+2. python ml_model/train.py
+3. python run.py (Terminal 1)
+4. streamlit run dashboard.py (Terminal 2)
+
+DEMO FLOW:
+----------
+1. Show Dashboard
+   - Clean interface with metrics
+   - Model score, predictions, drift status
+
+2. Upload Custom Model (Sidebar)
+   - Click "Upload Model" tab
+   - Upload any .pkl file with predict() method
+   - System deploys it automatically
+
+3. Train New Model (Sidebar)
+   - Click "Train New" tab
+   - Select model type (Random Forest/Linear/Gradient Boosting)
+   - Choose sample size
+   - Train and deploy
+
+4. Run Automated Test
+   - Terminal 3: python test_system.py
+   - Shows: predictions → drift detection → auto-retrain
+
+5. Show Key Features
+   - Confidence scores on predictions
+   - Drift visualization (bar chart)
+   - Model versioning (last 5 versions)
+   - Performance comparison before deployment
+
+TALKING POINTS:
+---------------
+✓ "Users can upload their own trained models"
+✓ "System supports multiple model types"
+✓ "Automatic drift detection and retraining"
+✓ "Performance validation before deployment"
+✓ "Full model versioning with rollback capability"
+✓ "Real-time monitoring dashboard"
+
+REAL-WORLD USE CASE:
+--------------------
+"EV charging stations - demand patterns change during peak hours.
+Our system detects this shift and retrains automatically,
+maintaining prediction accuracy without manual intervention."
+
+FUTURE WORK:
+------------
+"We plan to add plug-and-play model integration,
+allowing users to bring custom training pipelines
+into the automated MLOps workflow."
