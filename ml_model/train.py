@@ -1,4 +1,3 @@
-import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
@@ -9,27 +8,26 @@ import os
 np.random.seed(42)
 n_samples = 1000
 
-data = {
-    'feature1': np.random.randn(n_samples) * 10 + 50,
-    'feature2': np.random.randn(n_samples) * 5 + 20,
-    'feature3': np.random.randn(n_samples) * 15 + 100,
-    'target': None
-}
+feature1 = np.random.randn(n_samples) * 10 + 50
+feature2 = np.random.randn(n_samples) * 5 + 20
+feature3 = np.random.randn(n_samples) * 15 + 100
 
 # Create target with some relationship
-data['target'] = (
-    data['feature1'] * 0.5 + 
-    data['feature2'] * 1.2 + 
-    data['feature3'] * 0.3 + 
+target = (
+    feature1 * 0.5 + 
+    feature2 * 1.2 + 
+    feature3 * 0.3 + 
     np.random.randn(n_samples) * 5
 )
 
-df = pd.DataFrame(data)
-df.to_csv('ml_model/data.csv', index=False)
+# Save data as CSV
+data_array = np.column_stack([feature1, feature2, feature3, target])
+np.savetxt('ml_model/data.csv', data_array, delimiter=',', 
+           header='feature1,feature2,feature3,target', comments='')
 
 # Train model
-X = df[['feature1', 'feature2', 'feature3']]
-y = df['target']
+X = np.column_stack([feature1, feature2, feature3])
+y = target
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
@@ -46,8 +44,16 @@ with open('models/model.pkl', 'wb') as f:
 
 # Save training statistics
 train_stats = {
-    'mean': X_train.mean().to_dict(),
-    'std': X_train.std().to_dict()
+    'mean': {
+        'feature1': float(X[:, 0].mean()),
+        'feature2': float(X[:, 1].mean()),
+        'feature3': float(X[:, 2].mean())
+    },
+    'std': {
+        'feature1': float(X[:, 0].std()),
+        'feature2': float(X[:, 1].std()),
+        'feature3': float(X[:, 2].std())
+    }
 }
 
 with open('models/train_stats.pkl', 'wb') as f:
