@@ -1,9 +1,11 @@
 import numpy as np
-from scipy import stats
 from typing import Dict, Tuple
 
 class DriftDetector:
-    def __init__(self, threshold: float = 0.05):
+    def __init__(self, threshold: float = 0.3):
+        """
+        threshold: percentage change threshold (0.3 = 30% change triggers drift)
+        """
         self.threshold = threshold
         self.baseline_stats = None
         
@@ -16,7 +18,7 @@ class DriftDetector:
     
     def detect_drift(self, new_data: np.ndarray) -> Tuple[bool, Dict]:
         """
-        Detect drift using Kolmogorov-Smirnov test
+        Detect drift using statistical distance
         Returns: (drift_detected, drift_info)
         """
         if self.baseline_stats is None:
@@ -30,24 +32,29 @@ class DriftDetector:
         
         # Check each feature
         for i in range(new_data.shape[1]):
-            # Generate baseline distribution
-            baseline_samples = np.random.normal(
-                self.baseline_stats['mean'][i],
-                self.baseline_stats['std'][i],
-                size=len(new_data)
-            )
+            new_mean = np.mean(new_data[:, i])
+            new_std = np.std(new_data[:, i])
             
-            # KS test
-            statistic, p_value = stats.ks_2samp(baseline_samples, new_data[:, i])
+            baseline_mean = self.baseline_stats['mean'][i]
+            baseline_std = self.baseline_stats['std'][i]
             
-            feature_drift = p_value < self.threshold
+            # Calculate percentage change in mean
+            mean_change = abs(new_mean - baseline_mean) / (abs(baseline_mean) + 1e-10)
+            
+            # Calculate percentage change in std
+            std_change = abs(new_std - baseline_std) / (abs(baseline_std) + 1e-10)
+            
+            # Drift if either mean or std changed significantly
+            feature_drift = (mean_change > self.threshold) or (std_change > self.threshold)
+            
             drift_info['features'][f'feature{i+1}'] = {
-                'p_value': float(p_value),
-                'drift': feature_drift
+                'mean_change': float(mean_change),
+                'std_change': float(std_change),
+                'drift': bool(feature_drift)
             }
             
             if feature_drift:
                 drift_detected = True
         
-        drift_info['overall_drift'] = drift_detected
-        return drift_detected, drift_info
+        drift_info['overall_drift'] = bool(drift_detected)
+        return bool(drift_detected), drift_info
